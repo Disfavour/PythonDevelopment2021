@@ -6,87 +6,91 @@ import random
 class Application(tkinter.Frame):
     def __init__(self, master=None):
         super().__init__(master)
-        self.grid(sticky="NEWS")
+        self.grid(sticky="news")
 
         top = self.winfo_toplevel()
         top.rowconfigure(0, weight=1)
         top.columnconfigure(0, weight=1)
 
-        self.columnconfigure(0, weight=1)
-        self.columnconfigure(1, weight=1)
-        self.columnconfigure(2, weight=1)
-        self.columnconfigure(3, weight=1)
+        for i in range(4):
+            self.columnconfigure(i, weight=1)
+            self.rowconfigure(i + 1, weight=1)
 
-        self.rowconfigure(1, weight=1)
-        self.rowconfigure(2, weight=1)
-        self.rowconfigure(3, weight=1)
-        self.rowconfigure(4, weight=1)
-
-        self.check_map()
-        self.spot = {"row": 4, "column": 3}
         self.createWidgets()
 
     def createWidgets(self):
-        self.newButton = tkinter.Button(self, text="New", command=self.generate)
+        self.newButton = tkinter.Button(self, text="New", command=self.new_fun)
         self.quitButton = tkinter.Button(self, text="Exit", command=self.quit)
         self.newButton.grid(row=0, column=0, columnspan=2)
         self.quitButton.grid(row=0, column=2, columnspan=2)
+
+        self.logic_list = [i for i in range(15)]
+        self.win_list = [i for i in range(16)]
+
+        self.create_numbers()
+
+    def new_fun(self):
+        self.delete_buttons()
         self.create_numbers()
 
     def create_numbers(self):
-        self.bts = [tkinter.Button(self, text=str(p + 1), command=self.make_move(i)) for i, p in enumerate(cli_map)]
-        for number, button in enumerate(self.bts):
-            button.grid(row=number // 4 + 1, column=number % 4, sticky="NEWS")
+        self.generate()
+        self.logic_list_useful = [i for i in self.logic_list]+[15]
+
+        self.buttons = [tkinter.Button(self, text=str(i + 1), command=self.play(i)) for i in range(15)]
+        for i, number in enumerate(self.logic_list):
+            self.buttons[number].grid(row=1 + i // 4, column=i % 4, sticky="news")
+
+        self.empty_row = 4
+        self.empty_col = 3
 
     def generate(self):
-        random.shuffle(cli_map)
-        self.check_map()
-        self.spot = {"row": 4, "column": 3}
-        for button in self.bts:
-            button.destroy()
-        self.createWidgets()
+        random.shuffle(self.logic_list)
+        self.check_generation()
 
-    def check_map(self):
+    def check_generation(self):
         count = 0
-        for i in range(0, len(cli_map)):
-            for j in range(i, len(cli_map)):
-                if cli_map[i] > cli_map[j]:
+        for i in range(len(self.logic_list)):
+            for j in range(i, len(self.logic_list)):
+                if self.logic_list[i] > self.logic_list[j]:
                     count += 1
         if count % 2 == 1:
-            cli_map[0], cli_map[1] = cli_map[1], cli_map[0]
+            self.logic_list[0], self.logic_list[1] = self.logic_list[1], self.logic_list[0]
 
-    def make_move(self, number):
-        def move():
-            grid_info = self.bts[number].grid_info()
-            column = grid_info['column']
-            row = grid_info['row']
-            if row == self.spot['row'] and (column == self.spot['column'] - 1 or column == self.spot['column'] + 1):
-                self.bts[number].grid(row=self.spot['row'], column=self.spot['column'])
-                self.spot['column'] = column
-                if self.fix_win():
-                    tkinter.messagebox.showinfo(message="You win!")
-                    self.generate()
-            elif column == self.spot['column'] and (row == self.spot['row'] - 1 or row == self.spot['row'] + 1):
-                self.bts[number].grid(row=self.spot['row'], column=self.spot['column'])
-                self.spot['row'] = row
-                if self.fix_win():
-                    tkinter.messagebox.showinfo(message="You win!")
-                    self.generate()
+    def play(self, id):
+        def real_func():
+            current_button = self.buttons[id]
+            current_row, current_column = current_button.grid_info()["row"], current_button.grid_info()["column"]
 
-        return move
+            if abs(current_row - self.empty_row) == 1 and current_column == self.empty_col:
+                current_button.grid(row=self.empty_row)
 
-    def fix_win(self):
-        for number, button in enumerate(self.bts):
-            info = button.grid_info()
-            col = info['column']
-            row = info['row']
-            if col != cli_map[number] % 4 or row != cli_map[number] // 4 + 1:
-                return False
-        return True
+                self.logic_list_useful[(self.empty_row - 1) * 4 + self.empty_col] = self.logic_list_useful[(current_row - 1) * 4 + current_column]
+                self.logic_list_useful[(current_row - 1) * 4 + current_column] = 15
 
+                self.empty_row = current_row
 
-cli_map = [i for i in range(15)]
-random.shuffle(cli_map)
+            elif abs(current_column - self.empty_col) == 1 and current_row == self.empty_row:
+                current_button.grid(column=self.empty_col)
+
+                self.logic_list_useful[(self.empty_row - 1) * 4 + self.empty_col] = self.logic_list_useful[(current_row - 1) * 4 + current_column]
+                self.logic_list_useful[(current_row - 1) * 4 + current_column] = 15
+
+                self.empty_col = current_column
+
+            self.check_win()
+        return real_func
+
+    def check_win(self):
+        if self.logic_list_useful == self.win_list:
+            tkinter.messagebox.showinfo(message="You win!")
+            self.delete_buttons()
+            self.create_numbers()
+
+    def delete_buttons(self):
+        for button in self.buttons:
+            button.destroy()
+
 
 app = Application()
 app.master.title("15")
