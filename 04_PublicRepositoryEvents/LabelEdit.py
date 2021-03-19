@@ -21,7 +21,7 @@ class Application(tk.Frame):
         self.labelText = InputLabel(self)
         self.labelText.grid(sticky="we")
 
-        self.buttonQuit = tk.Button(self, text="Quit", command=self.master.quit)
+        self.buttonQuit = tk.Button(self, text="Quit", command=self.quit)
         self.buttonQuit.grid(sticky="e")
 
 
@@ -29,7 +29,7 @@ class InputLabel(tk.Label):
     def __init__(self, master=None):
         self.text = tk.StringVar()
         super().__init__(master, textvariable=self.text, takefocus=1, highlightthickness=2, cursor="xterm",
-                         font="TkFixedFont", relief=tk.SUNKEN, anchor="w", state=tk.NORMAL)
+                         font="TkFixedFont", relief=tk.SUNKEN, anchor="w")#, state=tk.NORMAL)
 
         self.palochka = tk.Frame(self, background="black", height=16, width=1)
         self.pos = 0
@@ -45,12 +45,18 @@ class InputLabel(tk.Label):
         elif event.keysym == "KP_Right" or event.keysym == "Right":
             new_pos = self.pos + SYMBOL_SIZE
             self.change_pos(new_pos)
-        elif event.keysym == "BackSpace" and self.pos >= SYMBOL_SIZE:
+        elif (event.keysym == "BackSpace" or event.keysym == "Delete") and self.pos >= SYMBOL_SIZE:
             index = self.pos // SYMBOL_SIZE
             tmp_text = self.text.get()
             self.text.set(tmp_text[:index - 1] + tmp_text[index:])
 
             new_pos = self.pos - SYMBOL_SIZE
+            self.change_pos(new_pos)
+        elif event.keysym == "KP_Home":
+            new_pos = 0
+            self.change_pos(new_pos)
+        elif event.keysym == "KP_End":
+            new_pos = len(self.text.get()) * SYMBOL_SIZE
             self.change_pos(new_pos)
         else:
             symbol = event.char
