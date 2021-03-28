@@ -91,22 +91,104 @@ class App(Application):
         self.paint.bind("<ButtonRelease>", self.button_release_handler)
 
     def mouse_handler(self, event):
-        pass
+        self.coords = [event.x, event.y] * 2
+        if len(self.paint.find_overlapping(*self.coords)) == 0:
+            self.cur_id = self.paint.create_oval(*self.coords)
+            self.newfig = True
+        else:
+            self.cur_id = self.paint.find_overlapping(*self.coords)[-1]
+            self.newfig = False
 
     def motion_handler(self, event):
-        pass
+        if event.state == 256:
+            if self.newfig:
+                self.coords[2], self.coords[3] = event.x, event.y
+                self.paint.delete(self.cur_id)
+                obj = self.current_object.get()
+                width = self.current_width.get()
+                fill = self.current_fill.get()
+                outline = self.current_outline.get()
+                if obj == "oval":
+                    self.isoval = True
+                    self.cur_id = self.paint.create_oval(*self.coords, width=width, fill=fill, outline=outline)
+                else:
+                    self.isoval = False
+                    self.cur_id = self.paint.create_rectangle(*self.coords, width=width, fill=fill, outline=outline)
+            else:
+                self.paint.move(self.cur_id, event.x - self.coords[0], event.y - self.coords[1])
+                self.coords = [event.x, event.y] * 2
 
     def button_release_handler(self, event):
-        pass
+        if self.newfig:
+            self.ids.append((self.cur_id, self.isoval))
+        coords = self.paint.coords(self.cur_id)
+        s, w, f, o = self.current_object.get(), self.current_width.get(), self.current_fill.get(), self.current_outline.get()
+        for i, obj in enumerate(self.ids):
+            if obj[0] == self.cur_id:
+                index = i
+        self.paint.delete(self.cur_id)
+        if s == "oval":
+            self.isoval = True
+            self.cur_id = self.paint.create_oval(*coords, width=w, fill=f, outline=o)
+        else:
+            self.isoval = False
+            self.cur_id = self.paint.create_rectangle(*coords, width=w, fill=f, outline=o)
+        self.ids[index] = (self.cur_id, self.isoval)
+        self.write_info((self.cur_id, self.isoval))
+
+    def get_config(self, fid):
+        options = self.paint.itemconfigure(fid)
+        coords = self.paint.coords(fid)
+        width, filling, outline = options['width'][-1], options['fill'][-1], options['outline'][-1]
+        return width, filling, outline, coords
+
+    def write_info(self, obj):
+        index = self.ids.index(obj)
+        fid = obj[0]
+        width, filling, outline, coords = self.get_config(fid)
+        string = f" {coords[0]} {coords[1]} {coords[2]} {coords[3]} " \
+                 f"width='{width}' outline='{outline}' fill='{filling}'"
+        self.text_space.delete(str(index + 1) + ".0", str(index + 1) + ".0 lineend")
+        if self.ids[index][1]:
+            self.text_space.insert(str(index + 1) + ".0", "oval")
+        else:
+            self.text_space.insert(str(index + 1) + ".0", "rectangle")
+        self.text_space.insert(str(index + 1) + ".0 lineend", string)
+        if len(self.text_space.get("1.0", tk.END).split("\n")) == index + 2:
+            self.text_space.insert(tk.END, "\n")
+
+    def set_tag(self, tag_rem, tag_set, ind):
+        self.text_space.tag_remove(tag_rem, str(ind + 1) + ".0", str(ind + 1) + ".0 lineend")
+        self.text_space.tag_add(tag_set, str(ind + 1) + ".0", str(ind + 1) + ".0 lineend")
 
     def draw_shapes(self):
-        pass
+        strings = self.text_space.get("1.0", tk.END).split("\n")
+        self.ids.clear()
+        for i, s in enumerate(strings):
+            words = s.split(" ")
+            if words[0] in self.objects:
+                try:
+                    fid = eval(f"self.paint.create_{words[0]}({','.join(words[1:])})")
+                    if words[0] == "oval":
+                        obj = (fid, True)
+                    else:
+                        obj = (fid, False)
+                    self.ids.append(obj)
+                    self.set_tag("incorrect", "correct", i)
+                except:
+                    self.set_tag("correct", "incorrect", i)
+            else:
+                self.set_tag("correct", "incorrect", i)
 
     def from_text_handler(self):
-        pass
+        for fid in self.paint.find_all():
+            self.paint.delete(fid)
+        self.draw_shapes()
 
     def from_image_handler(self):
-        pass
+        self.text_space.delete('1.0', tk.END)
+        for obj in self.ids:
+            self.write_info(obj)
 
 
 app = App(title="CCL interpreter v2")
